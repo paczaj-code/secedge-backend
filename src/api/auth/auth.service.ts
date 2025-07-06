@@ -24,6 +24,10 @@ interface RefreshTokenPayload {
   uuid: string;
 }
 
+/**
+ * AuthService handles user authentication and authorization tasks, including user login,
+ * token generation, token validation, and refreshing tokens.
+ */
 @Injectable()
 export class AuthService {
   private readonly privateKey: Buffer;
@@ -37,6 +41,13 @@ export class AuthService {
     this.publicKey = fs.readFileSync('public.pem');
   }
 
+  /**
+   * Authenticates a user and returns a pair of tokens (refreshToken and accessToken).
+   *
+   * @param {LoginDto} credentials - The login credentials containing the email and password.
+   * @returns {Promise<{ refreshToken: string; accessToken: string }>} A promise that resolves to an object containing the refresh token and access token.
+   * @throws {HttpException} If email or password is missing, or if credentials are invalid.
+   */
   async login(
     credentials: LoginDto,
   ): Promise<{ refreshToken: string; accessToken: string }> {
@@ -60,11 +71,30 @@ export class AuthService {
     return this.getTokens(user);
   }
 
-  private async verifyPassword(password: string, hashed_password: string) {
+  /**
+   * Verifies if the provided password matches the hashed password.
+   *
+   * @param {string} password - The plain text password to verify.
+   * @param {string} hashed_password - The hashed password to compare against.
+   * @return {Promise<boolean>} A promise that resolves to true if the password matches the hash, otherwise false.
+   */
+  private async verifyPassword(
+    password: string,
+    hashed_password: string,
+  ): Promise<boolean> {
     return await argon2.verify(hashed_password, password);
   }
 
-  async refreshToken(refreshToken: string) {
+  /**
+   * Refreshes and generates a new set of tokens based on the provided refresh token.
+   *
+   * @param {string} refreshToken - The refresh token used to verify and generate new tokens.
+   * @return {Promise<object>} Returns a promise that resolves to an object containing the new set of tokens.
+   * @throws {HttpException} Throws an exception if the refresh token is missing, invalid, or if the associated user cannot be found.
+   */
+  async refreshToken(
+    refreshToken: string,
+  ): Promise<{ refreshToken: string; accessToken: string }> {
     if (!refreshToken) {
       throw new HttpException(
         'Refresh token is required',
@@ -90,7 +120,15 @@ export class AuthService {
     return this.getTokens(user);
   }
 
-  private async getTokens(user: User) {
+  /**
+   * Generates a pair of tokens (refresh token and access token) for the provided user.
+   *
+   * @param {User} user - The user object containing user details required for token generation.
+   * @return {Promise<{refreshToken: string, accessToken: string}>} A promise that resolves to an object containing the generated refresh token and access token.
+   */
+  private async getTokens(
+    user: User,
+  ): Promise<{ refreshToken: string; accessToken: string }> {
     const refreshTokenPayload: RefreshTokenPayload = {
       id: user.id,
       uuid: user.uuid,
@@ -122,7 +160,14 @@ export class AuthService {
     return { refreshToken, accessToken };
   }
 
-  verifyAccessToken(token: string) {
+  /**
+   * Verifies the provided access token to ensure its validity and authenticity.
+   *
+   * @param {string} token - The access token to be verified.
+   * @return {object} Returns the decoded data from the verified token if valid.
+   * @throws {HttpException} Throws an exception if the token is missing or invalid.
+   */
+  verifyAccessToken(token: string): object | HttpException {
     if (!token) {
       throw new HttpException(
         'Access token is required',
