@@ -32,7 +32,7 @@ import { ROLE_KEY } from '../decorators/role.decorator';
  *
  * - verifyToken: Internal method to verify the validity of the provided token using
  *   the `AuthService`. Decodes the token and attaches the user information to the
- *   request if valid. Returns the decoded user data or null if token is invalid.
+ *   request if valid. Returns the decoded user data or null if the token is invalid.
  *
  * - getRequiredRole: Internal method to retrieve the role required for a specific
  *   route or handler. This is determined using metadata set on the route or class.
@@ -55,7 +55,7 @@ export class AuthorizationGuard implements CanActivate {
   /**
    * Determines whether the current request is authorized to activate a specific route.
    * This method validates the token, decodes it, checks its validity, and ensures
-   * that the required role for the route is met by the decoded token.
+   * that the decoded token meets the required role for the route.
    *
    * @param {ExecutionContext} context - The execution context object that provides details
    * about the current request, route handler, and other necessary metadata.
