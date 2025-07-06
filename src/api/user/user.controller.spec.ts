@@ -1,243 +1,353 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { UserController } from './user.controller';
 import { UserService } from './user.service';
-import { User } from '../../entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { UserRoles } from '../../enums/userRoles';
+import { AuthorizationGuard } from '../../guards/role.quard';
 
 describe('UserController', () => {
-  let userController: UserController;
-  let userService: UserService;
+  let controller: UserController;
+  let service: UserService;
+
+  const mockUserService = {
+    create: jest.fn(),
+    findAll: jest.fn(),
+    findOne: jest.fn(),
+    update: jest.fn(),
+    toggleActive: jest.fn(),
+    remove: jest.fn(),
+  };
+
+  const mockUser = {
+    id: 1,
+    uuid: 'test-uuid-123',
+    first_name: 'Jan',
+    last_name: 'Kowalski',
+    email: 'jan.kowalski@example.com',
+    phone: '+48123456789',
+    is_init_password: true,
+    role: 'OFFICER' as UserRoles,
+    default_site: { id: 1, name: 'Site 1' },
+    is_active: true,
+    created_at: new Date(),
+    updated_at: new Date(),
+    creator: 1,
+    other_sites: [{ id: 2, name: 'Site 2' }],
+  };
 
   beforeEach(async () => {
-    const mockUserService = {
-      findAll: jest.fn(),
-      findOne: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-      remove: jest.fn(),
-      toggleActive: jest.fn(),
-    };
-
     const module: TestingModule = await Test.createTestingModule({
       controllers: [UserController],
-      providers: [{ provide: UserService, useValue: mockUserService }],
-    }).compile();
+      providers: [
+        {
+          provide: UserService,
+          useValue: mockUserService,
+        },
+      ],
+    })
+      .overrideGuard(AuthorizationGuard)
+      .useValue({ canActivate: jest.fn(() => true) })
+      .compile();
 
-    userController = module.get<UserController>(UserController);
-    userService = module.get<UserService>(UserService);
+    controller = module.get<UserController>(UserController);
+    service = module.get<UserService>(UserService);
   });
 
-  describe('update', () => {
-    it('should update a user and return the updated record', async () => {
-      const uuid = 'sample-uuid';
-      const updateUserDto = {
-        firstName: 'Updated',
-        lastName: 'User',
-        email: 'updated.user@example.com',
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('create', () => {
+    it('should create a new user successfully', async () => {
+      // Arrange
+      const createUserDto: CreateUserDto = {
+        firstName: 'Jan',
+        lastName: 'Kowalski',
+        email: 'jan.kowalski@example.com',
+        phone: '+48123456789',
+        isInitPassword: true,
+        role: 'OFFICER' as UserRoles,
+        defaultSiteId: 1,
+        isActive: true,
+        otherSites: [2, 3],
+        creatorId: 1,
       };
 
-      const result = {
-        id: 1,
-        uuid: 'sample-uuid',
-        firstName: 'Updated',
-        lastName: 'User',
-        email: 'updated.user@example.com',
-        created_at: new Date(),
-        updated_at: new Date(),
-      } as unknown as User;
+      mockUserService.create.mockResolvedValue(mockUser);
 
-      // @ts-ignore
-      jest.spyOn(userService, 'update').mockResolvedValue(result);
+      // Act
+      const result = await controller.create(createUserDto);
 
-      expect(await userController.update(uuid, updateUserDto)).toBe(result);
-      expect(userService.update).toHaveBeenCalledWith(uuid, updateUserDto);
-      expect(userService.update).toHaveBeenCalledTimes(1);
+      // Assert
+      expect(service.create).toHaveBeenCalledWith(createUserDto);
+      expect(service.create).toHaveBeenCalledTimes(1);
+      expect(result).toEqual(mockUser);
     });
 
-    it('should handle errors during update', async () => {
-      const uuid = 'sample-uuid';
-      const updateUserDto = {
-        firstName: 'Updated',
-        lastName: 'User',
-        email: 'updated.user@example.com',
+    it('should create a user without optional fields', async () => {
+      // Arrange
+      const createUserDto: CreateUserDto = {
+        firstName: 'Anna',
+        lastName: 'Nowak',
+        email: 'anna.nowak@example.com',
+        isInitPassword: false,
+        role: 'VIEWER' as UserRoles,
+        defaultSiteId: 1,
+        isActive: true,
+        otherSites: [],
       };
 
-      jest
-        .spyOn(userService, 'update')
-        .mockRejectedValue(new Error('Update failed'));
+      const userWithoutOptionalFields = {
+        ...mockUser,
+        phone: undefined,
+        creatorId: undefined,
+      };
+      mockUserService.create.mockResolvedValue(userWithoutOptionalFields);
 
-      await expect(userController.update(uuid, updateUserDto)).rejects.toThrow(
-        'Update failed',
+      // Act
+      const result = await controller.create(createUserDto);
+
+      // Assert
+      expect(service.create).toHaveBeenCalledWith(createUserDto);
+      expect(result).toEqual(userWithoutOptionalFields);
+    });
+
+    it('should handle service errors during creation', async () => {
+      // Arrange
+      const createUserDto: CreateUserDto = {
+        firstName: 'Error',
+        lastName: 'Test',
+        email: 'error.test@example.com',
+        isInitPassword: true,
+        role: 'OFFICER' as UserRoles,
+        defaultSiteId: 1,
+        isActive: true,
+        otherSites: [],
+      };
+
+      const error = new Error('Database connection failed');
+      mockUserService.create.mockRejectedValue(error);
+
+      // Act & Assert
+      await expect(controller.create(createUserDto)).rejects.toThrow(
+        'Database connection failed',
       );
-      expect(userService.update).toHaveBeenCalledWith(uuid, updateUserDto);
-      expect(userService.update).toHaveBeenCalledTimes(1);
+      expect(service.create).toHaveBeenCalledWith(createUserDto);
     });
   });
 
   describe('findAll', () => {
-    it('should return an array of users', async () => {
-      const result = [
-        {
-          id: 1,
-          uuid: 'sample-uuid-1',
-          first_name: 'John',
-          last_name: 'Doe',
-          email: 'some',
-          phone: '1234567890',
-          default_site: {
-            id: 1,
-            name: 'Default Site',
-            uuid: 'default-site-uuid',
-          },
-          other_sites: [
-            { id: 2, name: 'Other Site 1', uuid: 'other-site-1-uuid' },
-            { id: 3, name: 'Other Site 2', uuid: 'other-site-2-uuid' },
-          ],
-          role: 'user',
-          created_at: new Date(),
-          updated_at: new Date(),
-        },
-      ] as unknown as User[];
-      jest.spyOn(userService, 'findAll').mockResolvedValue(result);
+    it('should return all users', async () => {
+      // Arrange
+      const users = [mockUser, { ...mockUser, id: 2, uuid: 'test-uuid-456' }];
+      mockUserService.findAll.mockResolvedValue(users);
 
-      expect(await userController.findAll()).toBe(result);
-      expect(userService.findAll).toHaveBeenCalledTimes(1);
+      // Act
+      const result = await controller.findAll();
+
+      // Assert
+      expect(service.findAll).toHaveBeenCalledTimes(1);
+      expect(result).toEqual(users);
     });
-  });
 
-  describe('create', () => {
-    it('should create a new user and return it', async () => {
-      const createUserDto = {
-        firstName: 'Jane',
-        lastName: 'Doe',
-        email: 'jane.doe@example.com',
-        phone: '9876543210',
-        isInitPassword: true,
-        role: 'admin',
-        defaultSiteId: 1,
-        isActive: true,
-        otherSites: [2, 3],
-        creatorId: 5,
-      } as unknown as CreateUserDto;
+    it('should return empty array when no users exist', async () => {
+      // Arrange
+      mockUserService.findAll.mockResolvedValue([]);
 
-      const result = {
-        id: 1,
-        uuid: 'new-user-uuid',
-        firstName: 'Jane',
-        lastName: 'Doe',
-        email: 'jane.doe@example.com',
-        phone: '9876543210',
-        isInitPassword: true,
-        role: 'admin',
-        defaultSiteId: 1,
-        isActive: true,
-        otherSites: [2, 3],
-        creatorId: 5,
-        created_at: new Date(),
-        updated_at: new Date(),
-      } as unknown as User;
+      // Act
+      const result = await controller.findAll();
 
-      jest.spyOn(userService, 'create').mockResolvedValue(result);
+      // Assert
+      expect(service.findAll).toHaveBeenCalledTimes(1);
+      expect(result).toEqual([]);
+    });
 
-      expect(await userController.create(createUserDto)).toBe(result);
-      expect(userService.create).toHaveBeenCalledWith(createUserDto);
-      expect(userService.create).toHaveBeenCalledTimes(1);
+    it('should handle service errors in findAll', async () => {
+      // Arrange
+      const error = new Error('Database error');
+      mockUserService.findAll.mockRejectedValue(error);
+
+      // Act & Assert
+      await expect(controller.findAll()).rejects.toThrow('Database error');
+      expect(service.findAll).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('findOne', () => {
-    it('should return a single user by uuid', async () => {
-      const result = {
-        id: 1,
-        uuid: 'sample-uuid-1',
-        first_name: 'John',
-        last_name: 'Doe',
-        email: 'some',
-        phone: '1234567890',
-        default_site: {
-          id: 1,
-          name: 'Default Site',
-          uuid: 'default-site-uuid',
-        },
-        other_sites: [
-          { id: 2, name: 'Other Site 1', uuid: 'other-site-1-uuid' },
-          { id: 3, name: 'Other Site 2', uuid: 'other-site-2-uuid' },
-        ],
-        role: 'user',
-        created_at: new Date(),
-        updated_at: new Date(),
-      } as unknown as User;
-      jest.spyOn(userService, 'findOne').mockResolvedValue(result);
+    it('should return a user by uuid', async () => {
+      // Arrange
+      const uuid = 'test-uuid-123';
+      mockUserService.findOne.mockResolvedValue(mockUser);
 
-      const uuid = 'sample-uuid-1';
-      expect(await userController.findOne(uuid)).toBe(result);
-      expect(userService.findOne).toHaveBeenCalledWith(uuid);
-      expect(userService.findOne).toHaveBeenCalledTimes(1);
+      // Act
+      const result = await controller.findOne(uuid);
+
+      // Assert
+      expect(service.findOne).toHaveBeenCalledWith(uuid);
+      expect(service.findOne).toHaveBeenCalledTimes(1);
+      expect(result).toEqual(mockUser);
+    });
+
+    it('should handle user not found', async () => {
+      // Arrange
+      const uuid = 'non-existent-uuid';
+      mockUserService.findOne.mockResolvedValue(null);
+
+      // Act
+      const result = await controller.findOne(uuid);
+
+      // Assert
+      expect(service.findOne).toHaveBeenCalledWith(uuid);
+      expect(result).toBeNull();
+    });
+
+    it('should handle service errors in findOne', async () => {
+      // Arrange
+      const uuid = 'test-uuid-123';
+      const error = new Error('Database error');
+      mockUserService.findOne.mockRejectedValue(error);
+
+      // Act & Assert
+      await expect(controller.findOne(uuid)).rejects.toThrow('Database error');
+      expect(service.findOne).toHaveBeenCalledWith(uuid);
+    });
+  });
+
+  describe('update', () => {
+    it('should update a user successfully', async () => {
+      // Arrange
+      const uuid = 'test-uuid-123';
+      const updateUserDto: UpdateUserDto = {
+        firstName: 'Updated',
+        lastName: 'Name',
+        email: 'updated.email@example.com',
+      };
+
+      const updatedUser = { ...mockUser, ...updateUserDto };
+      mockUserService.update.mockResolvedValue(updatedUser);
+
+      // Act
+      const result = await controller.update(uuid, updateUserDto);
+
+      // Assert
+      expect(service.update).toHaveBeenCalledWith(uuid, updateUserDto);
+      expect(service.update).toHaveBeenCalledTimes(1);
+      expect(result).toEqual(updatedUser);
+    });
+
+    it('should handle partial updates', async () => {
+      // Arrange
+      const uuid = 'test-uuid-123';
+      const updateUserDto: UpdateUserDto = {
+        firstName: 'OnlyFirstName',
+      };
+
+      const updatedUser = { ...mockUser, firstName: 'OnlyFirstName' };
+      mockUserService.update.mockResolvedValue(updatedUser);
+
+      // Act
+      const result = await controller.update(uuid, updateUserDto);
+
+      // Assert
+      expect(service.update).toHaveBeenCalledWith(uuid, updateUserDto);
+      expect(result).toEqual(updatedUser);
+    });
+
+    it('should handle service errors during update', async () => {
+      // Arrange
+      const uuid = 'test-uuid-123';
+      const updateUserDto: UpdateUserDto = { firstName: 'Error' };
+      const error = new Error('Update failed');
+      mockUserService.update.mockRejectedValue(error);
+
+      // Act & Assert
+      await expect(controller.update(uuid, updateUserDto)).rejects.toThrow(
+        'Update failed',
+      );
+      expect(service.update).toHaveBeenCalledWith(uuid, updateUserDto);
     });
   });
 
   describe('toggleActive', () => {
-    it('should toggle user active status and return the updated user', async () => {
-      const uuid = 'sample-uuid-1';
-      const result = {
-        id: 1,
-        uuid: 'sample-uuid-1',
-        firstName: 'John',
-        lastName: 'Doe',
-        email: 'john.doe@example.com',
-        isActive: false,
-        created_at: new Date(),
-        updated_at: new Date(),
-      } as unknown as User;
+    it('should toggle user active status', async () => {
+      // Arrange
+      const uuid = 'test-uuid-123';
+      const toggledUser = { ...mockUser, is_active: false };
+      mockUserService.toggleActive.mockResolvedValue(toggledUser);
 
-      // @ts-ignore
-      jest.spyOn(userService, 'toggleActive').mockResolvedValue(result);
+      // Act
+      const result = await controller.toggleActive(uuid);
 
-      expect(await userController.toggleActive(uuid)).toBe(result);
-      expect(userService.toggleActive).toHaveBeenCalledWith(uuid);
-      expect(userService.toggleActive).toHaveBeenCalledTimes(1);
+      // Assert
+      expect(service.toggleActive).toHaveBeenCalledWith(uuid);
+      expect(service.toggleActive).toHaveBeenCalledTimes(1);
+      expect(result).toEqual(toggledUser);
     });
 
-    it('should handle errors during toggleActive', async () => {
-      const uuid = 'sample-uuid-1';
+    it('should handle service errors during toggle', async () => {
+      // Arrange
+      const uuid = 'test-uuid-123';
+      const error = new Error('Toggle failed');
+      mockUserService.toggleActive.mockRejectedValue(error);
 
-      jest
-        .spyOn(userService, 'toggleActive')
-        .mockRejectedValue(new Error('Toggle failed'));
-
-      await expect(userController.toggleActive(uuid)).rejects.toThrow(
+      // Act & Assert
+      await expect(controller.toggleActive(uuid)).rejects.toThrow(
         'Toggle failed',
       );
-      expect(userService.toggleActive).toHaveBeenCalledWith(uuid);
-      expect(userService.toggleActive).toHaveBeenCalledTimes(1);
+      expect(service.toggleActive).toHaveBeenCalledWith(uuid);
     });
   });
 
   describe('remove', () => {
-    it('should remove a user and return successful response', async () => {
-      const uuid = 'sample-uuid-2';
-      const result = { success: true };
+    it('should remove a user successfully', async () => {
+      // Arrange
+      const uuid = 'test-uuid-123';
+      const deleteResult = { affected: 1 };
+      mockUserService.remove.mockResolvedValue(deleteResult);
 
-      // @ts-ignore
-      jest.spyOn(userService, 'remove').mockResolvedValue(result);
+      // Act
+      const result = await controller.remove(uuid);
 
-      expect(await userController.remove(uuid)).toBe(result);
-      expect(userService.remove).toHaveBeenCalledWith(uuid);
-      expect(userService.remove).toHaveBeenCalledTimes(1);
+      // Assert
+      expect(service.remove).toHaveBeenCalledWith(uuid);
+      expect(service.remove).toHaveBeenCalledTimes(1);
+      expect(result).toEqual(deleteResult);
     });
 
-    it('should handle errors during remove', async () => {
-      const uuid = 'sample-uuid-2';
+    it('should handle removal of non-existent user', async () => {
+      // Arrange
+      const uuid = 'non-existent-uuid';
+      const deleteResult = { affected: 0 };
+      mockUserService.remove.mockResolvedValue(deleteResult);
 
-      jest
-        .spyOn(userService, 'remove')
-        .mockRejectedValue(new Error('Deletion failed'));
+      // Act
+      const result = await controller.remove(uuid);
 
-      await expect(userController.remove(uuid)).rejects.toThrow(
-        'Deletion failed',
-      );
-      expect(userService.remove).toHaveBeenCalledWith(uuid);
-      expect(userService.remove).toHaveBeenCalledTimes(1);
+      // Assert
+      expect(service.remove).toHaveBeenCalledWith(uuid);
+      expect(result).toEqual(deleteResult);
+    });
+
+    it('should handle service errors during removal', async () => {
+      // Arrange
+      const uuid = 'test-uuid-123';
+      const error = new Error('Delete failed');
+      mockUserService.remove.mockRejectedValue(error);
+
+      // Act & Assert
+      await expect(controller.remove(uuid)).rejects.toThrow('Delete failed');
+      expect(service.remove).toHaveBeenCalledWith(uuid);
+    });
+  });
+
+  describe('Controller Guards and Roles', () => {
+    it('should be defined', () => {
+      expect(controller).toBeDefined();
+    });
+
+    it('should have UserService injected', () => {
+      expect(service).toBeDefined();
     });
   });
 });

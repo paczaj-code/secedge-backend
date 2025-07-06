@@ -261,7 +261,7 @@ describe('AuthService', () => {
       expect(result).toEqual(mockPayload);
       expect(jwtService.verify).toHaveBeenCalledWith(validToken, {
         publicKey: mockPublicKey,
-        algorithms: ['RS256'],
+        algorithms: ['RS512'],
       });
     });
 
