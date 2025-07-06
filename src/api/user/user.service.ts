@@ -3,16 +3,19 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../../entities/user.entity';
 
-// import { CreateUserDto } from './dto/create-user.dto';
+import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
 export class UserService {
   constructor(
     @InjectRepository(User) private readonly userRepository: Repository<User>,
   ) {}
-  // create(createUserDto: CreateUserDto) {
-  //   return 'This action adds a new user';
-  // }
+
+  create(createUserDto: CreateUserDto) {
+    const user = this.userRepository.create(createUserDto);
+    return this.userRepository.save(user);
+  }
 
   findAll() {
     const queryBuilder = this.userRepository
@@ -89,11 +92,42 @@ export class UserService {
 
     return queryBuilder.where('user.email = :email', { email }).getOne();
   }
-  // update(id: number, updateUserDto: UpdateUserDto) {
-  //   return `This action updates a #${id} user`;
-  // }
 
-  // remove(id: number) {
-  //   return `This action removes a #${id} user`;
-  // }
+  update(uuid: string, updateUserDto: UpdateUserDto) {
+    return this.userRepository
+      .createQueryBuilder()
+      .update(User)
+      .set(updateUserDto)
+      .where('uuid = :uuid', { uuid })
+      .execute();
+  }
+
+  remove(uuid: string) {
+    return this.userRepository
+      .createQueryBuilder()
+      .delete()
+      .from(User)
+      .where('uuid = :uuid', { uuid })
+      .execute();
+  }
+
+  async toggleActive(uuid: string) {
+    const user = await this.findUserByUuid(uuid);
+    return this.userRepository
+      .createQueryBuilder()
+      .update(User)
+      .set({ is_active: !user.is_active })
+      .where('uuid = :uuid', { uuid })
+      .execute();
+  }
+
+  async findUserByUuid(uuid: string): Promise<User> {
+    const user = await this.userRepository.findOne({
+      where: { uuid },
+    });
+    if (!user) {
+      throw new Error(`User with uuid ${uuid} not found`);
+    }
+    return user;
+  }
 }
