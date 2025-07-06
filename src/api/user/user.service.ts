@@ -66,6 +66,29 @@ export class UserService {
     return queryBuilder.where('user.uuid = :uuid', { uuid }).getOne();
   }
 
+  findUserByEmail(email: string) {
+    const queryBuilder = this.userRepository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.default_site', 'site')
+      .leftJoinAndSelect('user.other_sites', 'other_sites')
+      .select([
+        'user.id',
+        'user.uuid',
+        'user.hashed_password',
+        'user.first_name',
+        'user.last_name',
+        'user.email',
+        'user.phone',
+        'user.default_site',
+        'site.name',
+        'site.uuid',
+        'user.role',
+        'other_sites.name',
+        'other_sites.uuid',
+      ]);
+
+    return queryBuilder.where('user.email = :email', { email }).getOne();
+  }
   // update(id: number, updateUserDto: UpdateUserDto) {
   //   return `This action updates a #${id} user`;
   // }
