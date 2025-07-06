@@ -86,4 +86,48 @@ describe('UserService', () => {
       );
     });
   });
+
+  describe('findUserByEmail', () => {
+    it('should return a user for a valid email', async () => {
+      const email = 'john.doe@example.com';
+      mockUserRepository.createQueryBuilder().getOne.mockResolvedValueOnce({
+        id: 1,
+        uuid: 'valid-uuid-1',
+        email: 'john.doe@example.com',
+        first_name: 'John',
+        last_name: 'Doe',
+        hashed_password: 'hashedPassword123',
+      });
+
+      const result = await service.findUserByEmail(email);
+
+      expect(result).toEqual({
+        id: 1,
+        uuid: 'valid-uuid-1',
+        email: 'john.doe@example.com',
+        first_name: 'John',
+        last_name: 'Doe',
+        hashed_password: 'hashedPassword123',
+      });
+      expect(userRepository.createQueryBuilder().where).toHaveBeenCalledWith(
+        'user.email = :email',
+        { email },
+      );
+    });
+
+    it('should return null for an invalid email', async () => {
+      const email = 'invalid@example.com';
+      mockUserRepository
+        .createQueryBuilder()
+        .getOne.mockResolvedValueOnce(null);
+
+      const result = await service.findUserByEmail(email);
+
+      expect(result).toBeNull();
+      expect(userRepository.createQueryBuilder().where).toHaveBeenCalledWith(
+        'user.email = :email',
+        { email },
+      );
+    });
+  });
 });
