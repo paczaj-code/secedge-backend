@@ -7,12 +7,17 @@ import {
   Param,
   Delete,
   Put,
+  UseGuards,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { Role } from '../../decorators/role.decorator';
+import { AuthorizationGuard } from '../../guards/role.quard';
 
 @Controller('user')
+@Role('TEAM_LEADER')
+@UseGuards(AuthorizationGuard)
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
@@ -22,11 +27,15 @@ export class UserController {
   }
 
   @Get()
+  @Role('OFFICER')
+  @UseGuards(AuthorizationGuard)
   findAll() {
     return this.userService.findAll();
   }
 
   @Get(':uuid')
+  @Role('OFFICER')
+  @UseGuards(AuthorizationGuard)
   findOne(@Param('uuid') uuid: string) {
     return this.userService.findOne(uuid);
   }
