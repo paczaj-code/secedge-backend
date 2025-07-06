@@ -121,4 +121,21 @@ export class AuthService {
 
     return { refreshToken, accessToken };
   }
+
+  verifyAccessToken(token: string) {
+    if (!token) {
+      throw new HttpException(
+        'Access token is required',
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+    try {
+      return this.jwtService.verify(token, {
+        publicKey: this.publicKey,
+        algorithms: ['RS256'],
+      });
+    } catch (error) {
+      throw new HttpException('Invalid access token', HttpStatus.UNAUTHORIZED);
+    }
+  }
 }
