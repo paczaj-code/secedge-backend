@@ -6,7 +6,6 @@ import { HttpException, HttpStatus } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import * as fs from 'node:fs';
 import { User } from '../../entities/user.entity';
-import { UserRoles } from '../../enums/userRoles';
 import { Site } from '../../entities/site.entity';
 
 jest.mock('argon2');
@@ -54,6 +53,7 @@ describe('AuthService', () => {
           useValue: {
             signAsync: jest.fn(),
             verifyAsync: jest.fn(),
+            verify: jest.fn(),
           },
         },
       ],
@@ -197,49 +197,6 @@ describe('AuthService', () => {
     });
   });
 
-  // describe('getTokens (prywatna metoda)', () => {
-  //   it('powinien generować tokeny z prawidłowymi parametrami', async () => {
-  //     jwtService.signAsync.mockResolvedValueOnce('refreshToken');
-  //     jwtService.signAsync.mockResolvedValueOnce('accessToken');
-  //     userService.findUserByEmail.mockResolvedValue(mockUser);
-  //     const result = await service.login({
-  //       email: 'test@example.com',
-  //       password: 'password123',
-  //     });
-  //
-  //     userService.findUserByEmail.mockResolvedValue(mockUser);
-  //     (argon2.verify as jest.Mock).mockResolvedValue(true);
-  //
-  //     // Sprawdzamy czy metoda signAsync została wywołana z odpowiednimi parametrami
-  //     expect(jwtService.signAsync).toHaveBeenCalledWith(
-  //       { id: mockUser.id, uuid: mockUser.uuid },
-  //       {
-  //         privateKey: mockPrivateKey,
-  //         algorithm: 'RS256',
-  //         expiresIn: '24h',
-  //       },
-  //     );
-  //
-  //     expect(jwtService.signAsync).toHaveBeenCalledWith(
-  //       {
-  //         id: mockUser.id,
-  //         uuid: mockUser.uuid,
-  //         email: mockUser.email,
-  //         role: mockUser.role,
-  //         firstName: mockUser.first_name,
-  //         lastName: mockUser.last_name,
-  //         default_site: mockUser.default_site,
-  //         other_sites: mockUser.other_sites,
-  //       },
-  //       {
-  //         privateKey: mockPrivateKey,
-  //         algorithm: 'RS512',
-  //         expiresIn: '1h',
-  //       },
-  //     );
-  //   });
-  // });
-
   describe('verifyPassword (prywatna metoda)', () => {
     it('powinien zweryfikować hasło przez wywołanie argon2.verify', async () => {
       userService.findUserByEmail.mockResolvedValue(mockUser);
@@ -282,6 +239,46 @@ describe('AuthService', () => {
           password: 'password123',
         }),
       ).rejects.toThrow('JWT error');
+    });
+  });
+  describe('verifyAccessToken', () => {
+    const validToken = 'valid-access-token';
+    const mockPayload = {
+      id: 1,
+      uuid: 'test-uuid',
+      email: 'test@example.com',
+      role: 'OFFICER',
+      firstName: 'Jan',
+      lastName: 'Kowalski',
+      default_site: { id: 1, name: 'Test Site' },
+    };
+
+    it('powinien pomyślnie zweryfikować prawidłowy token', () => {
+      jwtService.verify.mockReturnValue(mockPayload);
+
+      const result = service.verifyAccessToken(validToken);
+
+      expect(result).toEqual(mockPayload);
+      expect(jwtService.verify).toHaveBeenCalledWith(validToken, {
+        publicKey: mockPublicKey,
+        algorithms: ['RS256'],
+      });
+    });
+
+    it('powinien rzucić wyjątek gdy token jest nieprawidłowy', () => {
+      jwtService.verify.mockImplementation(() => {
+        throw new Error('Invalid token');
+      });
+
+      expect(() => service.verifyAccessToken(validToken)).toThrow(
+        new HttpException('Invalid access token', HttpStatus.UNAUTHORIZED),
+      );
+    });
+
+    it('powinien rzucić wyjątek gdy token jest pusty', () => {
+      expect(() => service.verifyAccessToken('')).toThrow(
+        new HttpException('Access token is required', HttpStatus.UNAUTHORIZED),
+      );
     });
   });
 });
