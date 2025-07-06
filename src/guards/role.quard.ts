@@ -99,6 +99,9 @@ export class AuthorizationGuard implements CanActivate {
   private verifyToken(token: string, request: any): Partial<User> | null {
     try {
       const decoded = this.authService.verifyAccessToken(token);
+      if (!decoded) {
+        return null; // Token is invalid or expired
+      }
       request.user = decoded;
       return decoded;
     } catch {
