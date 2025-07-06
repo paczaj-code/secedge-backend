@@ -167,7 +167,7 @@ export class AuthService {
    * @return {object} Returns the decoded data from the verified token if valid.
    * @throws {HttpException} Throws an exception if the token is missing or invalid.
    */
-  verifyAccessToken(token: string): object | HttpException {
+  verifyAccessToken(token: string): object {
     if (!token) {
       throw new HttpException(
         'Access token is required',
