@@ -177,7 +177,7 @@ export class AuthService {
     try {
       return this.jwtService.verify(token, {
         publicKey: this.publicKey,
-        algorithms: ['RS256'],
+        algorithms: ['RS512'],
       });
     } catch (error) {
       throw new HttpException('Invalid access token', HttpStatus.UNAUTHORIZED);
