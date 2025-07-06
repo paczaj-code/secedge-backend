@@ -1,24 +1,25 @@
 import {
   Controller,
   Get,
-  // Post,
-  // Body,
-  // Patch,
+  Post,
+  Body,
+  Patch,
   Param,
-  // Delete,
+  Delete,
+  Put,
 } from '@nestjs/common';
 import { UserService } from './user.service';
-// import { CreateUserDto } from './dto/create-user.dto';
-// import { UpdateUserDto } from './dto/update-user.dto';
+import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @Controller('user')
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  // @Post()
-  // create(@Body() createUserDto: CreateUserDto) {
-  //   return this.userService.create(createUserDto);
-  // }
+  @Post()
+  create(@Body() createUserDto: CreateUserDto) {
+    return this.userService.create(createUserDto);
+  }
 
   @Get()
   findAll() {
@@ -30,13 +31,18 @@ export class UserController {
     return this.userService.findOne(uuid);
   }
 
-  // @Patch(':id')
-  // update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-  //   return this.userService.update(+id, updateUserDto);
-  // }
+  @Patch(':uuid')
+  update(@Param('uuid') uuid: string, @Body() updateUserDto: UpdateUserDto) {
+    return this.userService.update(uuid, updateUserDto);
+  }
 
-  // @Delete(':id')
-  // remove(@Param('id') id: string) {
-  //   return this.userService.remove(+id);
-  // }
+  @Put(':uuid/toggleActive')
+  toggleActive(@Param('uuid') uuid: string) {
+    return this.userService.toggleActive(uuid);
+  }
+
+  @Delete(':uuid')
+  remove(@Param('id') uuid: string) {
+    return this.userService.remove(uuid);
+  }
 }
