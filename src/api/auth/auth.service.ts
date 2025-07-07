@@ -51,7 +51,7 @@ export class AuthService {
   async login(
     credentials: LoginDto,
   ): Promise<{ refreshToken: string; accessToken: string }> {
-    if (!credentials.email || !credentials.password) {
+    if (!credentials.email || !credentials.password || !credentials) {
       throw new HttpException(
         'Email and password are required',
         HttpStatus.BAD_REQUEST,
