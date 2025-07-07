@@ -29,21 +29,6 @@ describe('SeederService', () => {
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
-  describe('readSqlFile', () => {
-    it('should read the SQL file and return its content', () => {
-      const fileName = 'example.sql';
-      const mockContent = 'SELECT * FROM users;';
-      jest.spyOn(fs, 'readFileSync').mockReturnValue(mockContent);
-
-      const result = service.readSqlFile(fileName);
-
-      expect(result).toBe(mockContent);
-      expect(fs.readFileSync).toHaveBeenCalledWith(
-        path.join('src', 'seeder', 'sql', fileName),
-        'utf-8',
-      );
-    });
-  });
 
   describe('seed', () => {
     it('should execute queries from the SQL file', async () => {
@@ -54,6 +39,33 @@ describe('SeederService', () => {
 
       expect(mockUserRepository.query).toHaveBeenCalledWith(
         'INSERT INTO users VALUES (1, "John")',
+      );
+    });
+  });
+
+  describe('readSqlFile', () => {
+    it('should read and return the content of the specified file', () => {
+      const mockFileName = 'test.sql';
+      const mockContent = 'SELECT * FROM users;';
+      jest.spyOn(fs, 'readFileSync').mockReturnValue(mockContent);
+
+      const result = service.readSqlFile(mockFileName);
+
+      expect(fs.readFileSync).toHaveBeenCalledWith(
+        path.join('src', 'seeder', 'sql', mockFileName),
+        'utf-8',
+      );
+      expect(result).toBe(mockContent);
+    });
+
+    it('should throw an error if the file cannot be read', () => {
+      const mockFileName = 'nonexistent.sql';
+      jest.spyOn(fs, 'readFileSync').mockImplementation(() => {
+        throw new Error('File not found');
+      });
+
+      expect(() => service.readSqlFile(mockFileName)).toThrowError(
+        'File not found',
       );
     });
   });
