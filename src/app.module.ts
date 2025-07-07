@@ -9,6 +9,7 @@ import { UserModule } from './api/user/user.module';
 import ormConfig from './config/orm.config';
 import { AuthModule } from './api/auth/auth.module';
 import { SeederModule } from './seeder/seeder.module';
+import { SiteModule } from './api/site/site.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { SeederModule } from './seeder/seeder.module';
     UserModule,
     AuthModule,
     SeederModule,
+    SiteModule,
   ],
   controllers: [AppController],
   providers: [AppService],
