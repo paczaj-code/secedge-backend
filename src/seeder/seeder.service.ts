@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import ormConfig from '../config/orm.config';
 import { readFileSync } from 'fs';
 import * as path from 'path';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -13,18 +12,10 @@ export class SeederService {
   ) {}
 
   readSqlFile(fileName: string) {
-    const sql = readFileSync(
-      path.join('src', 'seeder', 'sql', fileName),
-      'utf-8',
-    );
-    // console.log(path.join('sql', fileName));
-    console.log(sql);
-
-    return sql;
+    return readFileSync(path.join('src', 'seeder', 'sql', fileName), 'utf-8');
   }
 
   async seed() {
-    // const queryRunner = ormConfig().driver.createQueryRunner();
     for (let query of this.readSqlFile('seed.sql').split(';')) {
       await this.userRepository.query(query);
     }
