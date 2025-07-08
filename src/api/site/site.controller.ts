@@ -3,10 +3,10 @@ import {
   Get,
   Post,
   Body,
-  Patch,
   Param,
   Delete,
   UseGuards,
+  Put,
 } from '@nestjs/common';
 import { SiteService } from './site.service';
 import { CreateSiteDto } from './dto/create-site.dto';
@@ -35,16 +35,17 @@ export class SiteController {
   @Get(':uuid')
   @Role('OFFICER')
   @UseGuards(AuthorizationGuard)
-  findOne(@Param('id') uuid: string) {
+  findOne(@Param('uuid') uuid: string) {
     return this.siteService.findOne(uuid);
   }
 
-  @Patch(':id')
+  @Put(':uuid')
   update(@Param('uuid') uuid: string, @Body() updateSiteDto: UpdateSiteDto) {
+    console.log(updateSiteDto);
     return this.siteService.update(uuid, updateSiteDto);
   }
 
-  @Delete(':id')
+  @Delete(':uuid')
   remove(@Param('uuid') uuid: string) {
     return this.siteService.remove(uuid);
   }
