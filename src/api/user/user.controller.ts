@@ -14,6 +14,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { Role } from '../../decorators/role.decorator';
 import { AuthorizationGuard } from '../../guards/role.quard';
+import { UuidValidationPipePipe } from '../../pipes/uuid-validation-pipe/uuid-validation-pipe.pipe';
 
 @Controller('user')
 @Role('TEAM_LEADER')
@@ -36,22 +37,25 @@ export class UserController {
   @Get(':uuid')
   @Role('OFFICER')
   @UseGuards(AuthorizationGuard)
-  findOne(@Param('uuid') uuid: string) {
+  findOne(@Param('uuid', new UuidValidationPipePipe()) uuid: string) {
     return this.userService.findOne(uuid);
   }
 
   @Patch(':uuid')
-  update(@Param('uuid') uuid: string, @Body() updateUserDto: UpdateUserDto) {
+  update(
+    @Param('uuid', new UuidValidationPipePipe()) uuid: string,
+    @Body() updateUserDto: UpdateUserDto,
+  ) {
     return this.userService.update(uuid, updateUserDto);
   }
 
   @Put(':uuid/toggleActive')
-  toggleActive(@Param('uuid') uuid: string) {
+  toggleActive(@Param('uuid', new UuidValidationPipePipe()) uuid: string) {
     return this.userService.toggleActive(uuid);
   }
 
   @Delete(':uuid')
-  remove(@Param('id') uuid: string) {
+  remove(@Param('uuid', new UuidValidationPipePipe()) uuid: string) {
     return this.userService.remove(uuid);
   }
 }
