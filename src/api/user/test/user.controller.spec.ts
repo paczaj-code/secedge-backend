@@ -1,10 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { UserController } from './user.controller';
-import { UserService } from './user.service';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
-import { UserRoles } from '../../enums/userRoles';
-import { AuthorizationGuard } from '../../guards/role.quard';
+import { UserController } from '../user.controller';
+import { UserService } from '../user.service';
+import { CreateUserDto } from '../dto/create-user.dto';
+import { UpdateUserDto } from '../dto/update-user.dto';
+import { UserRoles } from '../../../enums/userRoles';
+import { AuthorizationGuard } from '../../../guards/role.quard';
 
 describe('UserController', () => {
   let controller: UserController;
