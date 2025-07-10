@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  InternalServerErrorException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateSiteDto } from './dto/create-site.dto';
 import { UpdateSiteDto } from './dto/update-site.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -25,7 +21,6 @@ export class SiteService {
   }
 
   async findOne(uuid: string) {
-    console.log(uuid);
     const site = await this.siteRepository
       .createQueryBuilder('site')
       .where('site.uuid = :uuid', { uuid })
@@ -41,31 +36,24 @@ export class SiteService {
   async update(uuid: string, updateSiteDto: UpdateSiteDto) {
     const site = await this.findOne(uuid);
 
-    console.log(updateSiteDto);
     if (!site) {
       throw new NotFoundException(`Site with UUID "${uuid}" not found`);
     }
 
-    try {
-      const result = await this.siteRepository
-        .createQueryBuilder('sites')
-        .update(Site)
-        .set(updateSiteDto)
-        .where('sites.uuid = :uuid', { uuid })
-        .execute();
+    const result = await this.siteRepository
+      .createQueryBuilder('sites')
+      .update(Site)
+      .set(updateSiteDto)
+      .where('sites.uuid = :uuid', { uuid })
+      .execute();
 
-      if (result.affected === 0) {
-        throw new NotFoundException(
-          `Site with UUID "${uuid}" could not be updated`,
-        );
-      }
-
-      return result;
-    } catch (error) {
-      throw new InternalServerErrorException(
-        `Failed to update site: ${error.message}`,
+    if (result.affected === 0) {
+      throw new NotFoundException(
+        `Site with UUID "${uuid}" could not be updated`,
       );
     }
+
+    return result;
   }
 
   async remove(uuid: string) {
@@ -74,19 +62,11 @@ export class SiteService {
       throw new NotFoundException(`Site with UUID "${uuid}" not found`);
     }
 
-    try {
-      const result = await this.siteRepository
-        .createQueryBuilder('sites')
-        .delete()
-        .from(Site)
-        .where('sites.uuid = :uuid', { uuid })
-        .execute();
-
-      return result;
-    } catch (error) {
-      throw new InternalServerErrorException(
-        `Failed to delete site: ${error.message}`,
-      );
-    }
+    return await this.siteRepository
+      .createQueryBuilder('sites')
+      .delete()
+      .from(Site)
+      .where('sites.uuid = :uuid', { uuid })
+      .execute();
   }
 }

@@ -41,7 +41,6 @@ export class SiteController {
 
   @Put(':uuid')
   update(@Param('uuid') uuid: string, @Body() updateSiteDto: UpdateSiteDto) {
-    console.log(updateSiteDto);
     return this.siteService.update(uuid, updateSiteDto);
   }
 

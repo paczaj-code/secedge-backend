@@ -1,9 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { SiteController } from './site.controller';
-import { CreateSiteDto } from './dto/create-site.dto';
-import { UpdateSiteDto } from './dto/update-site.dto';
-import { SiteService } from './site.service';
-import { AuthorizationGuard } from '../../guards/role.quard';
+import { SiteController } from '../site.controller';
+import { CreateSiteDto } from '../dto/create-site.dto';
+import { UpdateSiteDto } from '../dto/update-site.dto';
+import { SiteService } from '../site.service';
+import { AuthorizationGuard } from '../../../guards/role.quard';
 
 describe('SiteController', () => {
   let controller: SiteController;
