@@ -60,9 +60,6 @@ export class User {
   })
   default_site: Site;
 
-  @Column('int', { array: true, default: {} })
-  other_site: number[];
-
   @IsBoolean()
   @Column({ default: true })
   is_active: boolean;
