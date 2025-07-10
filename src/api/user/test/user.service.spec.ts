@@ -159,6 +159,71 @@ describe('UserService', () => {
     });
   });
 
+  describe('toggleActive', () => {
+    it('should toggle user is_active field', async () => {
+      const uuid = '123';
+      const existingUser = { uuid, is_active: true } as User;
+      const updateResult = { affected: 1 };
+
+      jest.spyOn(service, 'findUserByUuid').mockResolvedValue(existingUser);
+      jest.spyOn(userRepository, 'createQueryBuilder').mockImplementation(
+        () =>
+          ({
+            update: jest.fn().mockReturnThis(),
+            set: jest.fn().mockReturnThis(),
+            where: jest.fn().mockReturnThis(),
+            execute: jest.fn().mockResolvedValue(updateResult),
+          }) as any,
+      );
+
+      const result = await service.toggleActive(uuid);
+      expect(result).toEqual(updateResult);
+      expect(userRepository.createQueryBuilder).toHaveBeenCalled();
+
+      expect(service.findUserByUuid).toHaveBeenCalledWith(uuid);
+    });
+
+    it('should throw an error if user is not found', async () => {
+      const uuid = 'nonexistent-uuid';
+
+      jest.spyOn(service, 'findUserByUuid').mockImplementation(() => {
+        throw new Error(`User with uuid ${uuid} not found`);
+      });
+
+      await expect(service.toggleActive(uuid)).rejects.toThrow(
+        `User with uuid ${uuid} not found`,
+      );
+    });
+  });
+
+  describe('findUserByUuid', () => {
+    it('should return a user if uuid is found', async () => {
+      const uuid = '123';
+      const user = { id: 1, uuid } as User;
+
+      jest.spyOn(userRepository, 'findOne').mockResolvedValue(user);
+
+      const result = await service.findUserByUuid(uuid);
+      expect(result).toEqual(user);
+      expect(userRepository.findOne).toHaveBeenCalledWith({
+        where: { uuid },
+      });
+    });
+
+    it('should throw an error if user with uuid is not found', async () => {
+      const uuid = 'nonexistent-uuid';
+
+      jest.spyOn(userRepository, 'findOne').mockResolvedValue(null);
+
+      await expect(service.findUserByUuid(uuid)).rejects.toThrow(
+        `User with uuid ${uuid} not found`,
+      );
+      expect(userRepository.findOne).toHaveBeenCalledWith({
+        where: { uuid },
+      });
+    });
+  });
+
   describe('remove', () => {
     it('should remove a user', async () => {
       const uuid = '123';
