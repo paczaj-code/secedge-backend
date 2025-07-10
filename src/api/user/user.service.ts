@@ -1,6 +1,11 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import {
+  DeleteResult,
+  Repository,
+  SelectQueryBuilder,
+  UpdateResult,
+} from 'typeorm';
 import { User } from '../../entities/user.entity';
 
 import { CreateUserDto } from './dto/create-user.dto';
@@ -12,71 +17,52 @@ export class UserService {
     @InjectRepository(User) private readonly userRepository: Repository<User>,
   ) {}
 
-  create(createUserDto: CreateUserDto) {
+  private selectedColumns = [
+    'user.id',
+    'user.uuid',
+    'user.first_name',
+    'user.last_name',
+    'user.email',
+    'user.phone',
+    'user.role',
+    'site.name',
+    'site.uuid',
+    'other_sites.name',
+    'other_sites.uuid',
+  ];
+
+  /**
+   * Creates a new user entity and saves it to the repository.
+   *
+   * @param {CreateUserDto} createUserDto - The data transfer object containing information required to create a user.
+   * @return {Promise<User>} A promise that resolves to the newly created user.
+   */
+  create(createUserDto: CreateUserDto): Promise<User> {
     const user = this.userRepository.create(createUserDto);
     return this.userRepository.save(user);
   }
 
-  findAll() {
-    return this.userRepository.query(`
-    SELECT users.first_name, users.last_name, users.uuid, users.id, users.email, users.phone, users.role,
-       json_agg(json_build_object('name', sites.name, 'uuid', sites.uuid)) as default_site,
-CASE
-    WHEN array_length(other_site,1)>0  THEN (
-    SELECT json_agg(json_build_object('name', sites.name, 'uuid', sites.uuid)) from sites where id = ANY(other_site::integer[])
-                                            )
-    ELSE Null
-END as other_sites
-FROM users
-INNER JOIN sites ON sites.id = users."defaultSiteId"
-GROUP BY users.id, users.first_name, users.last_name, users.other_site
-ORDER BY users.id;
-    `);
-    // const queryBuilder = this.userRepository
-    //   .createQueryBuilder('user')
-    //   .leftJoinAndSelect('user.default_site', 'site')
-    //   .leftJoinAndSelect('user.other_sites', 'other_sites')
-    //   .select([
-    //     'user.id',
-    //     'user.uuid',
-    //     'user.first_name',
-    //     'user.last_name',
-    //     'user.email',
-    //     'user.phone',
-    //     'user.default_site',
-    //     'site.name',
-    //     'site.id',
-    //     'user.role',
-    //     'site.uuid',
-    //     'other_sites.name',
-    //     'other_sites.id',
-    //     'other_sites.uuid',
-    //     'user.created_at',
-    //     'user.updated_at',
-    //   ])
-    //   .orderBy('user.id', 'ASC');
-    //
-    // return queryBuilder.getMany();
+  /**
+   * Retrieves all User entities along with their associated site data.
+   *
+   * Executes a query to fetch all users and their related site information
+   * from the database by utilizing the buildUserWithSitesQuery method.
+   *
+   * @return {Promise<User[]>} A Promise resolving to an array of User objects.
+   */
+  findAll(): Promise<User[]> {
+    return this.buildUserWithSitesQuery().getMany();
   }
 
+  /**
+   * Fetches a single user entity based on the provided UUID.
+   *
+   * @param {string} uuid - The unique identifier of the user to be fetched.
+   * @return {Promise<User | null>} A promise that resolves to the user entity if found, or null otherwise.
+   * @throws {HttpException} Throws an exception if no user is found with the provided UUID.
+   */
   async findOne(uuid: string): Promise<User | null> {
-    const user = await this.userRepository
-      .createQueryBuilder('user')
-      .leftJoinAndSelect('user.default_site', 'site')
-      .leftJoinAndSelect('user.other_sites', 'other_sites')
-      .select([
-        'user.id',
-        'user.uuid',
-        'user.first_name',
-        'user.last_name',
-        'user.email',
-        'user.phone',
-        'user.role',
-        'site.name',
-        'site.uuid',
-        'other_sites.name',
-        'other_sites.uuid',
-      ])
+    const user = await this.buildUserWithSitesQuery()
       .where('user.uuid = :uuid', { uuid })
       .getOne();
 
@@ -85,51 +71,52 @@ ORDER BY users.id;
     }
 
     return user;
-
-    // const queryBuilder = this.userRepository
-    //   .createQueryBuilder('user')
-    //   .leftJoinAndSelect('user.other_sites', 'sites')
-    //   .leftJoinAndSelect('user.default_site', 'default_site')
-    //   .select([
-    //     'user.uuid',
-    //     'user.first_name',
-    //     'user.last_name',
-    //     // 'user.other_site',
-    //     'sites.name',
-    //     'sites.uuid',
-    //     'default_site.name',
-    //     'default_site.uuid',
-    //   ])
-    //   .where('user.uuid = :uuid', { uuid });
-    //
-    // return queryBuilder.getOne();
   }
 
-  findUserByEmail(email: string) {
-    const queryBuilder = this.userRepository
+  /**
+   * Builds a query to retrieve user information along with associated sites data,
+   * including both default site and other related sites.
+   *
+   * @return {Object} A query builder instance configured to fetch user data and associated site details.
+   */
+  private buildUserWithSitesQuery(): SelectQueryBuilder<User> {
+    return this.userRepository
       .createQueryBuilder('user')
       .leftJoinAndSelect('user.default_site', 'site')
       .leftJoinAndSelect('user.other_sites', 'other_sites')
-      .select([
-        'user.id',
-        'user.uuid',
-        'user.hashed_password',
-        'user.first_name',
-        'user.last_name',
-        'user.email',
-        'user.phone',
-        'user.default_site',
-        'site.name',
-        'site.uuid',
-        'user.role',
-        'other_sites.name',
-        'other_sites.uuid',
-      ]);
-
-    return queryBuilder.where('user.email = :email', { email }).getOne();
+      .select(this.selectedColumns);
   }
 
-  update(uuid: string, updateUserDto: UpdateUserDto) {
+  /**
+   * Finds a user by their email address.
+   *
+   * @param {string} email - The email address of the user to find.
+   * @return {Promise<User>} A promise that resolves to the user object if found.
+   * @throws {HttpException} Throws an exception if the user is not found.
+   */
+  async findUserByEmail(email: string): Promise<User> {
+    this.selectedColumns.push('user.hashed_password');
+    const user = await this.buildUserWithSitesQuery()
+      .where('user.email = :email', {
+        email,
+      })
+      .getOne();
+
+    if (!user) {
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+    }
+
+    return user;
+  }
+
+  /**
+   * Updates the user record in the database with the provided data.
+   *
+   * @param {string} uuid - The unique identifier of the user to be updated.
+   * @param {UpdateUserDto} updateUserDto - The object containing the updated user data.
+   * @return {Promise<UpdateResult>} A promise that resolves to the result of the update operation.
+   */
+  update(uuid: string, updateUserDto: UpdateUserDto): Promise<UpdateResult> {
     return this.userRepository
       .createQueryBuilder()
       .update(User)
@@ -138,7 +125,13 @@ ORDER BY users.id;
       .execute();
   }
 
-  remove(uuid: string) {
+  /**
+   * Removes a user from the repository based on the provided UUID.
+   *
+   * @param {string} uuid - The unique identifier of the user to be removed.
+   * @return {Promise<DeleteResult>} A promise that resolves to the result of the delete operation.
+   */
+  remove(uuid: string): Promise<DeleteResult> {
     return this.userRepository
       .createQueryBuilder()
       .delete()
@@ -157,6 +150,13 @@ ORDER BY users.id;
       .execute();
   }
 
+  /**
+   * Finds a user by their unique UUID.
+   *
+   * @param {string} uuid - The UUID of the user to be retrieved.
+   * @return {Promise<User>} A promise that resolves to the user object if found.
+   * @throws {Error} If the user with the specified UUID is not found.
+   */
   async findUserByUuid(uuid: string): Promise<User> {
     const user = await this.userRepository.findOne({
       where: { uuid },
