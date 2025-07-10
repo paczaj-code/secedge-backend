@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../../entities/user.entity';
@@ -19,7 +19,7 @@ export class UserService {
 
   findAll() {
     return this.userRepository.query(`
-    SELECT users.first_name, users.last_name,
+    SELECT users.first_name, users.last_name, users.uuid, users.id, users.email, users.phone, users.role,
        json_agg(json_build_object('name', sites.name, 'uuid', sites.uuid)) as default_site,
 CASE
     WHEN array_length(other_site,1)>0  THEN (
@@ -60,23 +60,49 @@ ORDER BY users.id;
   }
 
   async findOne(uuid: string): Promise<User | null> {
-    const queryBuilder = this.userRepository
+    const user = await this.userRepository
       .createQueryBuilder('user')
-      .leftJoinAndSelect('user.other_sites', 'sites')
-      .leftJoinAndSelect('user.default_site', 'default_site')
+      .leftJoinAndSelect('user.default_site', 'site')
+      .leftJoinAndSelect('user.other_sites', 'other_sites')
       .select([
+        'user.id',
         'user.uuid',
         'user.first_name',
         'user.last_name',
-        // 'user.other_site',
-        'sites.name',
-        'sites.uuid',
-        'default_site.name',
-        'default_site.uuid',
+        'user.email',
+        'user.phone',
+        'user.role',
+        'site.name',
+        'site.uuid',
+        'other_sites.name',
+        'other_sites.uuid',
       ])
-      .where('user.uuid = :uuid', { uuid });
+      .where('user.uuid = :uuid', { uuid })
+      .getOne();
 
-    return queryBuilder.getOne();
+    if (!user) {
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+    }
+
+    return user;
+
+    // const queryBuilder = this.userRepository
+    //   .createQueryBuilder('user')
+    //   .leftJoinAndSelect('user.other_sites', 'sites')
+    //   .leftJoinAndSelect('user.default_site', 'default_site')
+    //   .select([
+    //     'user.uuid',
+    //     'user.first_name',
+    //     'user.last_name',
+    //     // 'user.other_site',
+    //     'sites.name',
+    //     'sites.uuid',
+    //     'default_site.name',
+    //     'default_site.uuid',
+    //   ])
+    //   .where('user.uuid = :uuid', { uuid });
+    //
+    // return queryBuilder.getOne();
   }
 
   findUserByEmail(email: string) {
