@@ -67,8 +67,9 @@ export class AuthService {
         'Invalid email or password',
         HttpStatus.UNAUTHORIZED,
       );
+    } else {
+      return this.getTokens(user);
     }
-    return this.getTokens(user);
   }
 
   /**
