@@ -57,6 +57,10 @@ export class SiteService {
   }
 
   async remove(uuid: string) {
+    // TODO Change if the site has any associated resources before deletion
+    // This could include checking for associated users, projects, etc.
+    // If there are associated resources, throw an error or handle accordingly
+    // For now, we will just delete the site without checking for associated resources
     const site = await this.findOne(uuid);
     if (!site) {
       throw new NotFoundException(`Site with UUID "${uuid}" not found`);
