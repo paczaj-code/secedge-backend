@@ -6,6 +6,8 @@ import { JwtService } from '@nestjs/jwt';
 import { HttpException, HttpStatus } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import { User } from '../../../entities/user.entity';
+import * as fs from 'node:fs';
+import { UserRoles } from '../../../enums/userRoles';
 
 describe('AuthService', () => {
   let authService: AuthService;
@@ -167,6 +169,82 @@ describe('AuthService', () => {
 
       const result = authService.verifyAccessToken('validToken');
       expect(result).toEqual(decoded);
+    });
+  });
+
+  describe('getTokens', () => {
+    // Mock pliku z kluczami
+    beforeEach(() => {
+      jest.spyOn(fs, 'readFileSync').mockImplementation((path) => {
+        if (path === 'private.key') return Buffer.from('mock-private-key');
+        if (path === 'public.pem') return Buffer.from('mock-public-key');
+        throw new Error('File not found');
+      });
+    });
+
+    it('should generate refresh and access tokens with correct payload', async () => {
+      // Przygotuj mockowego użytkownika
+      const mockUser = {
+        id: 1,
+        uuid: 'test-uuid',
+        email: 'test@example.com',
+        first_name: 'John',
+        last_name: 'Doe',
+        role: 'OFFICER' as UserRoles,
+        default_site: null,
+        other_sites: [],
+      } as unknown as User;
+
+      // Zmockuj signAsync, aby zwracał przewidywane tokeny
+      (jwtService.signAsync as jest.Mock)
+        .mockResolvedValueOnce('mock-refresh-token')
+        .mockResolvedValueOnce('mock-access-token');
+
+      // Użyj refleksji, aby wywołać prywatną metodę
+      const result = await (authService as any).getTokens(mockUser);
+
+      // Sprawdź rezultat
+      expect(result).toEqual({
+        refreshToken: 'mock-refresh-token',
+        accessToken: 'mock-access-token',
+      });
+
+      // Sprawdź wywołania signAsync
+      expect(jwtService.signAsync).toHaveBeenCalledTimes(2);
+
+      // Sprawdź payload i opcje tokena refresh
+      expect(jwtService.signAsync).toHaveBeenNthCalledWith(
+        1,
+        {
+          id: mockUser.id,
+          uuid: mockUser.uuid,
+        },
+        {
+          privateKey: expect.any(Buffer),
+          algorithm: 'RS256',
+          expiresIn: '24h',
+        },
+      );
+
+      // Sprawdź payload i opcje tokena access
+      expect(jwtService.signAsync).toHaveBeenNthCalledWith(
+        2,
+        {
+          id: mockUser.id,
+          uuid: mockUser.uuid,
+          email: mockUser.email,
+          role: mockUser.role,
+          firstName: mockUser.first_name,
+          lastName: mockUser.last_name,
+          default_site: mockUser.default_site,
+          other_sites: mockUser.other_sites,
+        },
+        {
+          privateKey: expect.any(Buffer),
+          algorithm: 'RS512',
+          expiresIn: '1h',
+        },
+      );
     });
   });
 });
