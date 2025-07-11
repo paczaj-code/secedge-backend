@@ -11,12 +11,10 @@ export class SiteService {
     @InjectRepository(Site) private readonly siteRepository: Repository<Site>,
   ) {}
 
-  create(createSiteDto: CreateSiteDto) {
+  async create(createSiteDto: CreateSiteDto) {
     // Check if the site name is unique before creating a new site
-    if (!createSiteDto.name) {
-      throw new HttpException('Site name is required', 400);
-    }
-    const isUnique = this.isSiteNameUnique(createSiteDto.name);
+
+    const isUnique = await this.isSiteNameUnique(createSiteDto.name);
     if (!isUnique) {
       throw new HttpException(
         `Site name "${createSiteDto.name}" already exists`,
@@ -45,8 +43,7 @@ export class SiteService {
   }
 
   async update(uuid: string, updateSiteDto: UpdateSiteDto) {
-    const site = await this.findOne(uuid);
-
+    const site = await this.siteRepository.findOne({ where: { uuid } });
     if (!site) {
       throw new NotFoundException(`Site with UUID "${uuid}" not found`);
     }
@@ -82,7 +79,7 @@ export class SiteService {
     // This could include checking for associated users, projects, etc.
     // If there are associated resources, throw an error or handle accordingly
     // For now, we will just delete the site without checking for associated resources
-    const site = await this.findOne(uuid);
+    const site = await this.siteRepository.findOne({ where: { uuid } });
     if (!site) {
       throw new NotFoundException(`Site with UUID "${uuid}" not found`);
     }
