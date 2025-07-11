@@ -8,6 +8,7 @@ import {
   Delete,
   Put,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -15,6 +16,15 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { Role } from '../../decorators/role.decorator';
 import { AuthorizationGuard } from '../../guards/role.quard';
 import { UuidValidationPipePipe } from '../../pipes/uuid-validation-pipe/uuid-validation-pipe.pipe';
+import { Paginate, PaginateQuery } from 'nestjs-paginate';
+
+export interface AppRequest extends Request {
+  user?: {
+    uuid: string;
+    role: string;
+    default_site?: string;
+  };
+}
 
 @Controller('user')
 @Role('TEAM_LEADER')
@@ -30,8 +40,8 @@ export class UserController {
   @Get()
   @Role('OFFICER')
   @UseGuards(AuthorizationGuard)
-  findAll() {
-    return this.userService.findAll();
+  findAll(@Paginate() query: PaginateQuery, @Req() request: AppRequest) {
+    return this.userService.findAll(query, request.user);
   }
 
   @Get(':uuid')
