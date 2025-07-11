@@ -10,14 +10,28 @@ import { User } from '../../entities/user.entity';
 
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import {
+  FilterOperator,
+  paginate,
+  PaginateConfig,
+  Paginated,
+  PaginateQuery,
+} from 'nestjs-paginate';
 
+import { Role } from '../../enums/role.enum';
+
+/**
+ * Service for managing user-related operations, such as creating, retrieving,
+ * updating, and deleting user entities. It interacts with the database via a
+ * repository and provides methods for handling business logic concerning users.
+ */
 @Injectable()
 export class UserService {
   constructor(
     @InjectRepository(User) private readonly userRepository: Repository<User>,
   ) {}
 
-  private selectedColumns = [
+  private readonly selectedColumns = [
     'user.id',
     'user.uuid',
     'user.first_name',
@@ -50,8 +64,49 @@ export class UserService {
    *
    * @return {Promise<User[]>} A Promise resolving to an array of User objects.
    */
-  findAll(): Promise<User[]> {
-    return this.buildUserWithSitesQuery().getMany();
+  async findAll(
+    query: PaginateQuery,
+    user:
+      | {
+          uuid: string;
+          role: string;
+          default_site?: string;
+        }
+      | undefined,
+  ): Promise<Paginated<User>> {
+    const paginateConfig: PaginateConfig<User> = {
+      relations: ['default_site', 'other_sites'],
+      select: [
+        'uuid',
+        'id',
+        'first_name',
+        'last_name',
+        'email',
+        'created_at',
+        'updated_at',
+        'role',
+        'default_site.id',
+        'default_site.uuid',
+        'default_site.name',
+        'other_sites.id',
+        'other_sites.uuid',
+        'other_sites.name',
+      ],
+      sortableColumns: ['id', 'first_name', 'last_name', 'email', 'created_at'],
+      defaultSortBy: [['id', 'ASC']],
+      filterableColumns: {
+        first_name: [FilterOperator.ILIKE],
+        last_name: [FilterOperator.ILIKE],
+      },
+    };
+    const queryBuilder = this.userRepository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.default_site', 'site')
+      .leftJoinAndSelect('user.other_sites', 'other_sites');
+    if (Role[user!.role] < Role.TEAM_LEADER) {
+      queryBuilder.where('user.is_active = true');
+    }
+    return paginate<User>(query, queryBuilder, paginateConfig);
   }
 
   /**
@@ -132,6 +187,22 @@ export class UserService {
    * @return {Promise<DeleteResult>} A promise that resolves to the result of the delete operation.
    */
   remove(uuid: string): Promise<DeleteResult> {
+    // TODO: Implement chekc if the user is associated with any other entities before deletion
+    // For example, check if the user is associated with any sites or other entities.
+    // If the user is associated with other entities, throw an error or handle it accordingly.
+    // This can be done by checking the relationships in the User entity.
+    // Example:
+    // const user = await this.findUserByUuid(uuid);
+    // if (user.default_site || user.other_sites.length > 0) {
+    //   throw new HttpException('User is associated with sites and cannot be deleted', HttpStatus.BAD_REQUEST);
+    // }
+    // After implementing the check, proceed with the deletion.
+    // If the user is not associated with any other entities, proceed with the deletion.
+    // If the user is associated with other entities, you may want to handle it differently,
+    // such as soft deleting the user or throwing an error.
+    // For now, we will proceed with the deletion.
+    // Note: Ensure that the User entity has the necessary relationships defined for this check.
+    // If the user is associated with other entities, you may want to handle it differently,
     return this.userRepository
       .createQueryBuilder()
       .delete()
