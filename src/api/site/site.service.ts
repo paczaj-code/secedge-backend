@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { HttpException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateSiteDto } from './dto/create-site.dto';
 import { UpdateSiteDto } from './dto/update-site.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -12,6 +12,17 @@ export class SiteService {
   ) {}
 
   create(createSiteDto: CreateSiteDto) {
+    // Check if the site name is unique before creating a new site
+    if (!createSiteDto.name) {
+      throw new HttpException('Site name is required', 400);
+    }
+    const isUnique = this.isSiteNameUnique(createSiteDto.name);
+    if (!isUnique) {
+      throw new HttpException(
+        `Site name "${createSiteDto.name}" already exists`,
+        400,
+      );
+    }
     const site = this.siteRepository.create(createSiteDto);
     return this.siteRepository.save(site);
   }
@@ -40,6 +51,16 @@ export class SiteService {
       throw new NotFoundException(`Site with UUID "${uuid}" not found`);
     }
 
+    // Check if the site name is unique if it is being updated
+    if (updateSiteDto.name && updateSiteDto.name !== site.name) {
+      const isUnique = await this.isSiteNameUnique(updateSiteDto.name);
+      if (!isUnique) {
+        throw new HttpException(
+          `Site name "${updateSiteDto.name}" already exists`,
+          400,
+        );
+      }
+    }
     const result = await this.siteRepository
       .createQueryBuilder('sites')
       .update(Site)
@@ -72,5 +93,14 @@ export class SiteService {
       .from(Site)
       .where('sites.uuid = :uuid', { uuid })
       .execute();
+  }
+
+  async isSiteNameUnique(name: string): Promise<boolean> {
+    const existingSite = await this.siteRepository
+      .createQueryBuilder('site')
+      .where('site.name = :name', { name })
+      .getOne();
+
+    return !existingSite;
   }
 }
