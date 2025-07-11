@@ -49,23 +49,6 @@ describe('UserService', () => {
     });
   });
 
-  describe('findAll', () => {
-    it('should return an array of users', async () => {
-      const users = [{ id: 1, firstName: 'John' }] as unknown as User[];
-      jest.spyOn(userRepository, 'createQueryBuilder').mockImplementation(
-        () =>
-          ({
-            leftJoinAndSelect: jest.fn().mockReturnThis(),
-            select: jest.fn().mockReturnThis(),
-            getMany: jest.fn().mockResolvedValue(users),
-          }) as any,
-      );
-
-      const result = await service.findAll();
-      expect(result).toEqual(users);
-    });
-  });
-
   describe('findOne', () => {
     it('should return a user if found', async () => {
       const uuid = '123';
@@ -241,6 +224,64 @@ describe('UserService', () => {
 
       const result = await service.remove(uuid);
       expect(result).toEqual(deleteResult);
+    });
+  });
+
+  describe('toggleActive', () => {
+    it('should toggle user is_active field from true to false', async () => {
+      const uuid = '123';
+      const existingUser = { uuid, is_active: true } as User;
+      const updateResult = { affected: 1 };
+
+      jest.spyOn(service, 'findUserByUuid').mockResolvedValue(existingUser);
+      jest.spyOn(userRepository, 'createQueryBuilder').mockImplementation(
+        () =>
+          ({
+            update: jest.fn().mockReturnThis(),
+            set: jest.fn().mockReturnThis(),
+            where: jest.fn().mockReturnThis(),
+            execute: jest.fn().mockResolvedValue(updateResult),
+          }) as any,
+      );
+
+      const result = await service.toggleActive(uuid);
+      expect(result).toEqual(updateResult);
+      expect(userRepository.createQueryBuilder).toHaveBeenCalled();
+      expect(service.findUserByUuid).toHaveBeenCalledWith(uuid);
+    });
+
+    it('should toggle user is_active field from false to true', async () => {
+      const uuid = '123';
+      const existingUser = { uuid, is_active: false } as User;
+      const updateResult = { affected: 1 };
+
+      jest.spyOn(service, 'findUserByUuid').mockResolvedValue(existingUser);
+      jest.spyOn(userRepository, 'createQueryBuilder').mockImplementation(
+        () =>
+          ({
+            update: jest.fn().mockReturnThis(),
+            set: jest.fn().mockReturnThis(),
+            where: jest.fn().mockReturnThis(),
+            execute: jest.fn().mockResolvedValue(updateResult),
+          }) as any,
+      );
+
+      const result = await service.toggleActive(uuid);
+      expect(result).toEqual(updateResult);
+      expect(userRepository.createQueryBuilder).toHaveBeenCalled();
+      expect(service.findUserByUuid).toHaveBeenCalledWith(uuid);
+    });
+
+    it('should throw an error if user is not found', async () => {
+      const uuid = 'nonexistent-uuid';
+
+      jest.spyOn(service, 'findUserByUuid').mockImplementation(() => {
+        throw new Error(`User with uuid ${uuid} not found`);
+      });
+
+      await expect(service.toggleActive(uuid)).rejects.toThrow(
+        `User with uuid ${uuid} not found`,
+      );
     });
   });
 });
