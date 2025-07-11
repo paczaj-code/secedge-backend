@@ -31,6 +31,7 @@
     "argon2": "^0.43.0",
     "class-validator": "^0.14.2",
     "compression": "^1.8.0",
+    "nestjs-paginate": "^12.5.1",
     "nestjs-typeorm-paginate": "^4.1.0",
     "pg": "^8.16.3",
     "reflect-metadata": "^0.2.2",
