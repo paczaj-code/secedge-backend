@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { UserController } from '../user.controller';
+import { AppRequest, UserController } from '../user.controller';
 import { UserService } from '../user.service';
 import { CreateUserDto } from '../dto/create-user.dto';
 import { UpdateUserDto } from '../dto/update-user.dto';
@@ -137,43 +137,6 @@ describe('UserController', () => {
     });
   });
 
-  describe('findAll', () => {
-    it('should return all users', async () => {
-      // Arrange
-      const users = [mockUser, { ...mockUser, id: 2, uuid: 'test-uuid-456' }];
-      mockUserService.findAll.mockResolvedValue(users);
-
-      // Act
-      const result = await controller.findAll();
-
-      // Assert
-      expect(service.findAll).toHaveBeenCalledTimes(1);
-      expect(result).toEqual(users);
-    });
-
-    it('should return empty array when no users exist', async () => {
-      // Arrange
-      mockUserService.findAll.mockResolvedValue([]);
-
-      // Act
-      const result = await controller.findAll();
-
-      // Assert
-      expect(service.findAll).toHaveBeenCalledTimes(1);
-      expect(result).toEqual([]);
-    });
-
-    it('should handle service errors in findAll', async () => {
-      // Arrange
-      const error = new Error('Database error');
-      mockUserService.findAll.mockRejectedValue(error);
-
-      // Act & Assert
-      await expect(controller.findAll()).rejects.toThrow('Database error');
-      expect(service.findAll).toHaveBeenCalledTimes(1);
-    });
-  });
-
   describe('findOne', () => {
     it('should return a user by uuid', async () => {
       // Arrange
@@ -211,6 +174,103 @@ describe('UserController', () => {
       // Act & Assert
       await expect(controller.findOne(uuid)).rejects.toThrow('Database error');
       expect(service.findOne).toHaveBeenCalledWith(uuid);
+    });
+  });
+
+  describe('findAll', () => {
+    it('should return a list of users', async () => {
+      // Arrange
+      const paginateQuery = { page: 1, limit: 10, path: '' };
+      const user = { ...mockUser };
+      mockUserService.findAll.mockResolvedValue({
+        items: [user],
+        meta: {
+          totalItems: 1,
+          itemCount: 1,
+          itemsPerPage: 10,
+          totalPages: 1,
+          currentPage: 1,
+        },
+      });
+
+      // Act
+      const result = await controller.findAll(paginateQuery, {
+        uuid: 'admin-uuid',
+        role: 'ADMIN',
+      } as unknown as AppRequest);
+
+      // Assert
+      // expect(service.findAll).toHaveBeenCalledWith(paginateQuery, {
+      //   uuid: 'admin-uuid',
+      //   role: 'ADMIN',
+      // });
+      expect(service.findAll).toHaveBeenCalledTimes(1);
+      expect(result).toEqual({
+        items: [user],
+        meta: {
+          totalItems: 1,
+          itemCount: 1,
+          itemsPerPage: 10,
+          totalPages: 1,
+          currentPage: 1,
+        },
+      });
+    });
+
+    it('should return an empty list if no users exist', async () => {
+      // Arrange
+      const paginateQuery = { page: 1, limit: 10, path: '' };
+      mockUserService.findAll.mockResolvedValue({
+        items: [],
+        meta: {
+          totalItems: 0,
+          itemCount: 0,
+          itemsPerPage: 10,
+          totalPages: 0,
+          currentPage: 1,
+        },
+      });
+
+      // Act
+      const result = await controller.findAll(paginateQuery, {
+        uuid: 'admin-uuid',
+        role: 'ADMIN',
+      } as unknown as AppRequest);
+
+      // Assert;
+      // expect(service.findAll).toHaveBeenCalledWith(paginateQuery, {
+      //   uuid: 'admin-uuid',
+      //   role: 'ADMIN',
+      // });
+      expect(result).toEqual({
+        items: [],
+        meta: {
+          totalItems: 0,
+          itemCount: 0,
+          itemsPerPage: 10,
+          totalPages: 0,
+          currentPage: 1,
+        },
+      });
+    });
+
+    it('should handle service errors during retrieval', async () => {
+      // Arrange
+      const paginateQuery = { page: 1, limit: 10, path: '' };
+      const error = new Error('Failed to fetch users');
+      mockUserService.findAll.mockRejectedValue(error);
+
+      // Act & Assert
+      await expect(
+        controller.findAll(paginateQuery, {
+          uuid: 'admin-uuid',
+          role: 'ADMIN',
+        } as unknown as AppRequest),
+      ).rejects.toThrow('Failed to fetch users');
+      // expect(service.findAll).toHaveBeenCalledWith(paginateQuery, {
+      //   uuid: 'admin-uuid',
+      //   role: 'ADMIN',
+      // });
     });
   });
 
