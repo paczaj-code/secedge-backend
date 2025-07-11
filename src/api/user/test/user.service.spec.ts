@@ -5,6 +5,13 @@ import { Repository } from 'typeorm';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { User } from '../../../entities/user.entity';
 import { HttpException, HttpStatus } from '@nestjs/common';
+import { paginate, PaginateQuery } from 'nestjs-paginate';
+
+// Mock paginate function
+jest.mock('nestjs-paginate', () => ({
+  ...jest.requireActual('nestjs-paginate'),
+  paginate: jest.fn(),
+}));
 
 describe('UserService', () => {
   let service: UserService;
@@ -142,43 +149,6 @@ describe('UserService', () => {
     });
   });
 
-  describe('toggleActive', () => {
-    it('should toggle user is_active field', async () => {
-      const uuid = '123';
-      const existingUser = { uuid, is_active: true } as User;
-      const updateResult = { affected: 1 };
-
-      jest.spyOn(service, 'findUserByUuid').mockResolvedValue(existingUser);
-      jest.spyOn(userRepository, 'createQueryBuilder').mockImplementation(
-        () =>
-          ({
-            update: jest.fn().mockReturnThis(),
-            set: jest.fn().mockReturnThis(),
-            where: jest.fn().mockReturnThis(),
-            execute: jest.fn().mockResolvedValue(updateResult),
-          }) as any,
-      );
-
-      const result = await service.toggleActive(uuid);
-      expect(result).toEqual(updateResult);
-      expect(userRepository.createQueryBuilder).toHaveBeenCalled();
-
-      expect(service.findUserByUuid).toHaveBeenCalledWith(uuid);
-    });
-
-    it('should throw an error if user is not found', async () => {
-      const uuid = 'nonexistent-uuid';
-
-      jest.spyOn(service, 'findUserByUuid').mockImplementation(() => {
-        throw new Error(`User with uuid ${uuid} not found`);
-      });
-
-      await expect(service.toggleActive(uuid)).rejects.toThrow(
-        `User with uuid ${uuid} not found`,
-      );
-    });
-  });
-
   describe('findUserByUuid', () => {
     it('should return a user if uuid is found', async () => {
       const uuid = '123';
@@ -281,6 +251,107 @@ describe('UserService', () => {
 
       await expect(service.toggleActive(uuid)).rejects.toThrow(
         `User with uuid ${uuid} not found`,
+      );
+    });
+  });
+  describe('findAll', () => {
+    it('should return paginated users for admin role', async () => {
+      // Arrange
+      const mockPaginateQuery: PaginateQuery = {
+        page: 1,
+        limit: 10,
+        path: '',
+      };
+
+      const mockUser = {
+        uuid: 'admin-uuid',
+        role: 'ADMIN',
+      };
+
+      const mockQueryBuilder = {
+        createQueryBuilder: jest.fn().mockReturnThis(),
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+      };
+
+      const mockPaginatedResult = {
+        data: [{ id: 1, name: 'User 1' }],
+        meta: {
+          totalItems: 1,
+          itemCount: 1,
+          itemsPerPage: 10,
+          totalPages: 1,
+          currentPage: 1,
+        },
+        links: {
+          first: '',
+          previous: '',
+          next: '',
+          last: '',
+        },
+      };
+
+      jest
+        .spyOn(userRepository, 'createQueryBuilder')
+        .mockImplementation(() => mockQueryBuilder as any);
+      (paginate as jest.Mock).mockResolvedValue(mockPaginatedResult);
+
+      // Act
+      const result = await service.findAll(mockPaginateQuery, mockUser);
+
+      // Assert
+      expect(result).toEqual(mockPaginatedResult);
+      expect(userRepository.createQueryBuilder).toHaveBeenCalled();
+    });
+
+    it('should filter active users for non-admin roles', async () => {
+      // Arrange
+      const mockPaginateQuery: PaginateQuery = {
+        page: 1,
+        limit: 10,
+        path: '',
+      };
+
+      const mockUser = {
+        uuid: 'officer-uuid',
+        role: 'OFFICER',
+      };
+
+      const mockQueryBuilder = {
+        createQueryBuilder: jest.fn().mockReturnThis(),
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+      };
+
+      const mockPaginatedResult = {
+        data: [{ id: 1, name: 'User 1', is_active: true }],
+        meta: {
+          totalItems: 1,
+          itemCount: 1,
+          itemsPerPage: 10,
+          totalPages: 1,
+          currentPage: 1,
+        },
+        links: {
+          first: '',
+          previous: '',
+          next: '',
+          last: '',
+        },
+      };
+
+      jest
+        .spyOn(userRepository, 'createQueryBuilder')
+        .mockImplementation(() => mockQueryBuilder as any);
+      (paginate as jest.Mock).mockResolvedValue(mockPaginatedResult);
+
+      // Act
+      const result = await service.findAll(mockPaginateQuery, mockUser);
+
+      // Assert
+      expect(result).toEqual(mockPaginatedResult);
+      expect(mockQueryBuilder.where).toHaveBeenCalledWith(
+        'user.is_active = true',
       );
     });
   });
