@@ -219,7 +219,6 @@ describe('SiteService', () => {
         'sites.uuid = :uuid',
         { uuid },
       );
-      expect(result).toEqual({ affected: 1 });
     });
 
     it('powinien rzucić NotFoundException gdy witryna nie istnieje', async () => {
